@@ -30,11 +30,10 @@ It also uses the numpy and matplotlib libraries.
 - ...
 
 ### Segmentation
-- [] Laplacian
-- [] Canny
-- [] Simple gradient
-- [] Local maximum
-- [] Hysteresis
+- [x] Simple gradient
+- [x] Laplacian
+- [X] Local maximum
+- [X] Hysteresis
 - [] Region growing
 - ...
 
