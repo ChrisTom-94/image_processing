@@ -1,6 +1,6 @@
 import numpy as np
 import cv2 as cv
-from utils import ROWS, COLS, CHANNELS, RGB_CHANNELS, get_pixel_neighborhood
+from utils import ROWS, COLS, CHANNELS, RGB_CHANNELS, get_pixel_neighborhood_indices
 
 def simple_gradient(img: cv.Mat):
 
@@ -141,7 +141,7 @@ def hysteresys(img: cv.Mat, threshold1, threshold2):
     while len(stack) > 0:
         [i, j] = stack.pop()
 
-        neighborhood = get_pixel_neighborhood(img, i, j, 8)
+        neighborhood = get_pixel_neighborhood_indices(img, i, j, 8)
 
         for k in range(len(neighborhood)):
             [n_i, n_j] = neighborhood[k]

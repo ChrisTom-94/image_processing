@@ -170,25 +170,28 @@ def equalize_histogram_rgb(img: cv.Mat):
     return result.astype(np.uint8)
 
 # get pixel neighborhood
-def get_pixel_neighborhood(pixel: tuple, rows: int, cols: int, connectivity: int):
+def get_pixel_neighborhood_indices(img: cv.Mat, pixel: tuple, connectivity: int):
     
+    rows = img.shape[ROWS]
+    cols = img.shape[COLS]
+
     i = pixel[0]
     j = pixel[1]
 
     neighborhood = []
 
-    if i > 0 : neighborhood.append((i-1, j))
-    if j > 0 : neighborhood.append((i, j-1))
-    if i < rows - 1 : neighborhood.append((i+1, j))
-    if j < cols - 1 : neighborhood.append((i, j+1))
+    if i > 0 : neighborhood.append((i-1,j))
+    if j > 0 : neighborhood.append((i,j-1))
+    if i < rows - 1 : neighborhood.append((i+1,j))
+    if j < cols - 1 : neighborhood.append((i,j+1))
 
     if connectivity == 8:
         if i > 0 :
-            if j > 0 : neighborhood.append((i-1, j-1))
-            if j < cols - 1 : neighborhood.append((i-1, j+1))
+            if j > 0 : neighborhood.append((i-1,j-1))
+            if j < cols - 1 : neighborhood.append((i-1,j+1))
         if i < rows - 1 :
-            if j > 0 : neighborhood.append((i+1, j-1))
-            if j < cols - 1 : neighborhood.append((i+1, j+1))
+            if j > 0 : neighborhood.append((i+1,j-1))
+            if j < cols - 1 : neighborhood.append((i+1,j+1))
     
     return neighborhood
 

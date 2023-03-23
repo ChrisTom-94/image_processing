@@ -2,25 +2,40 @@ import numpy as np
 import cv2 as cv
 from utils import ROWS, COLS, RGB_CHANNELS
 
-def dilate(img: cv.Mat) :
+def dilate(img: cv.Mat, mask: cv.Mat, mask_kernel: tuple) :
     
     if(len(img.shape) == RGB_CHANNELS) :
-        return Exception("Img need to be grayscale and binarzed")
+        return Exception("Image need to be in grayscale and binarized")
+    
+    rows_img = img.shape[ROWS]
+    cols_img = img.shape[COLS]
 
-    rows = img.shape[ROWS]
-    cols = img.shape[COLS]
+    non_zeros_img = cv.findNonZero(img)
 
+    non_zeros_mask = cv.findNonZero(mask)
+    
     result = img.copy()
 
-    for i in range(1, rows - 1) :
-        for j in range(1, cols - 1) :
-            pixel = img[i,j]
-            if not pixel == 255 : continue
+    for i in range(len(non_zeros_img)) :
+        # findnonzero return a list with inverted coordinates
+        # so COLS is the row and ROWS is the column
+        row_img = non_zeros_img[i][0][COLS]
+        col_img = non_zeros_img[i][0][ROWS]
 
-            result[i + 1, j] = 255
-            result[i, j + 1] = 255
-            result[i, j - 1] = 255
-            result[i - 1, j] = 255
+        for j in range(len(non_zeros_mask)) :
+            # same as above, coordinates are inverted
+            row_mask = non_zeros_mask[j][0][COLS]
+            col_mask = non_zeros_mask[j][0][ROWS]
+
+            diff_i = row_mask - mask_kernel[ROWS]
+            diff_j = col_mask - mask_kernel[COLS]
+
+            neighbor = [row_img + diff_i, col_img + diff_j]
+
+            if neighbor[ROWS] < 0 or neighbor[ROWS] >= rows_img : continue
+            if neighbor[COLS] < 0 or neighbor[COLS] >= cols_img : continue
+
+            result[neighbor[ROWS], neighbor[COLS]] = 255
 
     return result     
             
@@ -53,11 +68,11 @@ def erode(img: cv.Mat) :
     
     return result
 
-def opening(img: cv.Mat) :
+def opening(img: cv.Mat, mask: cv.Mat, mask_kernel: tuple) :
     eroded = erode(erode(erode(img)))
     return dilate(dilate(dilate(eroded)))
 
-def closing(img: cv.Mat) :
+def closing(img: cv.Mat, mask: cv.Mat, mask_kernel: tuple) :
     dilated = dilate(dilate(dilate(img)))
     return erode(erode(erode(dilated)))
 

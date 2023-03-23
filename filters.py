@@ -1,13 +1,13 @@
 import numpy as np
 import cv2 as cv
-from utils import get_pixel_neighborhood, RGB_CHANNELS, ROWS, COLS, CHANNELS
+from utils import get_pixel_neighborhood_indices, RGB_CHANNELS, ROWS, COLS, CHANNELS
 
 ###########################
 ###### median filter ######
 ###########################
 
 def median(img: np.ndarray, i: int, j: int, kernel_size: int):
-    neighborhood = get_pixel_neighborhood((i,j), img.shape[ROWS], img.shape[COLS], kernel_size)
+    neighborhood = get_pixel_neighborhood_indices((i,j), img.shape[ROWS], img.shape[COLS], kernel_size)
     values = [img[pixel] for pixel in neighborhood]
     values.append(img[i,j])
     values.sort()
@@ -64,7 +64,7 @@ def gaussian_filter(img: cv.Mat, kernel_size: int, sigma: float):
 
     for i in range(rows):
         for j in range(cols):
-            neighborhood = get_pixel_neighborhood((i,j), rows, cols, kernel_size)
+            neighborhood = get_pixel_neighborhood_indices((i,j), rows, cols, kernel_size)
             values = [img[pixel] for pixel in neighborhood]
             filtered[i,j] = gaussian_filter_pixel(img[i,j], values, sigma)
 
@@ -101,7 +101,7 @@ def non_linear_filter(img: cv.Mat, kernel_size: int, filter_function: function):
     
     for i in range(rows):
         for j in range(cols):
-            neighborhood = get_pixel_neighborhood((i,j), rows, cols, kernel_size)
+            neighborhood = get_pixel_neighborhood_indices((i,j), rows, cols, kernel_size)
             values = [img[pixel] for pixel in neighborhood]
             filtered[i,j] = filter_function(values)
     
@@ -113,7 +113,7 @@ def non_linear_filter_rgb(img: cv.Mat, rows: int, cols: int, kernel_size: int, f
     for c in range(img.shape[CHANNELS]):
         for i in range(rows):
             for j in range(cols):
-                neighborhood = get_pixel_neighborhood((i,j), rows, cols, kernel_size)
+                neighborhood = get_pixel_neighborhood_indices((i,j), rows, cols, kernel_size)
                 values = [img[pixel,c] for pixel in neighborhood]
                 filtered[i,j,c] = filter_function(values)
     
