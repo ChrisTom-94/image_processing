@@ -101,14 +101,14 @@ def cumulated_histogram_rgb (img: cv.Mat, normalize: bool = False):
 def binarize (img: cv.Mat, threshold: int):
 
     if len(img.shape) == RGB_CHANNELS:
-        gray_image = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
+        img = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
     
     bin_img = np.zeros((img.shape[ROWS], img.shape[COLS]), dtype=np.uint8)
 
-    rows = gray_image.shape[ROWS]
-    cols = gray_image.shape[COLS]
+    rows = img.shape[ROWS]
+    cols = img.shape[COLS]
 
-    bin = lambda i, j: bin_img[i,j] if gray_image[i,j] < threshold else 255
+    bin = lambda i, j: bin_img[i,j] if img[i,j] < threshold else 255
 
     for i in range(rows):
         for j in range(cols):
@@ -170,7 +170,7 @@ def equalize_histogram_rgb(img: cv.Mat):
     return result.astype(np.uint8)
 
 # get pixel neighborhood
-def get_pixel_neighborhood(pixel: tuple(int, int), rows: int, cols: int, connectivity: int):
+def get_pixel_neighborhood(pixel: tuple, rows: int, cols: int, connectivity: int):
     
     i = pixel[0]
     j = pixel[1]

@@ -38,10 +38,11 @@ It also uses the numpy and matplotlib libraries.
 - ...
 
 ### Morphology
-- [] Erosion
-- [] Dilation
-- [] Opening
-- [] Closing
+- [x] Erosion
+- [x] Dilation
+- [x] Opening
+- [x] Closing
+- [x] homotopic thinning
 - ...
 
 
