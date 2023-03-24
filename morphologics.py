@@ -2,7 +2,12 @@ import numpy as np
 import cv2 as cv
 from utils import ROWS, COLS, RGB_CHANNELS
 
-def dilate(img: cv.Mat, mask: cv.Mat, mask_kernel: tuple) :
+BLACK = 0
+WHITE = 255
+JOKER = -1
+LOWER_LIMIT = 0
+
+def dilate(img: cv.Mat, mask: cv.Mat, mask_kernel: tuple, iterations: int = 1) :
     
     if(len(img.shape) == RGB_CHANNELS) :
         return Exception("Image need to be in grayscale and binarized")
@@ -10,128 +15,132 @@ def dilate(img: cv.Mat, mask: cv.Mat, mask_kernel: tuple) :
     rows_img = img.shape[ROWS]
     cols_img = img.shape[COLS]
 
-    non_zeros_img = cv.findNonZero(img)
-
     non_zeros_mask = cv.findNonZero(mask)
+    non_zero_mask_length = len(non_zeros_mask)
     
     result = img.copy()
 
-    for i in range(len(non_zeros_img)) :
-        # findnonzero return a list with inverted coordinates
-        # so COLS is the row and ROWS is the column
-        row_img = non_zeros_img[i][0][COLS]
-        col_img = non_zeros_img[i][0][ROWS]
+    for _ in range(iterations) :
 
-        for j in range(len(non_zeros_mask)) :
-            # same as above, coordinates are inverted
-            row_mask = non_zeros_mask[j][0][COLS]
-            col_mask = non_zeros_mask[j][0][ROWS]
+        non_zeros_img = cv.findNonZero(result)
+        non_zeros_img_length = len(non_zeros_img)
 
-            diff_i = row_mask - mask_kernel[ROWS]
-            diff_j = col_mask - mask_kernel[COLS]
+        for i in range(non_zeros_img_length) :
+            # findnonzero return a list with inverted coordinates
+            # so COLS is the row and ROWS is the column
+            row_img = non_zeros_img[i][0][COLS]
+            col_img = non_zeros_img[i][0][ROWS]
 
-            neighbor = [row_img + diff_i, col_img + diff_j]
+            for j in range(non_zero_mask_length) :
+                # same as above, coordinates are inverted
+                row_mask = non_zeros_mask[j][0][COLS]
+                col_mask = non_zeros_mask[j][0][ROWS]
 
-            if neighbor[ROWS] < 0 or neighbor[ROWS] >= rows_img : continue
-            if neighbor[COLS] < 0 or neighbor[COLS] >= cols_img : continue
+                diff_i = row_mask - mask_kernel[ROWS]
+                diff_j = col_mask - mask_kernel[COLS]
 
-            result[neighbor[ROWS], neighbor[COLS]] = 255
+                neighbor = [row_img + diff_i, col_img + diff_j]
+
+                if neighbor[ROWS] < LOWER_LIMIT or neighbor[ROWS] >= rows_img : continue
+                if neighbor[COLS] < LOWER_LIMIT or neighbor[COLS] >= cols_img : continue
+
+                result[neighbor[ROWS], neighbor[COLS]] = WHITE
 
     return result     
             
 
-def erode(img: cv.Mat) :
+def erode(img: cv.Mat, mask: cv.Mat, mask_kernel: tuple, iterations: int = 1) :
     if(len(img.shape) == RGB_CHANNELS) :
-        return Exception("Img need to be grayscale and binarzed")
+        return Exception("Image need to be in grayscale and binarized")
 
     rows = img.shape[ROWS]
     cols = img.shape[COLS]
 
+    non_zeros_mask = cv.findNonZero(mask)
+    non_zero_mask_length = len(non_zeros_mask)
+
     result = img.copy()
 
-    for i in range(1, rows - 1) :
-        for j in range(1, cols - 1) :
-            pixel = img[i,j]
-            if not pixel == 255: continue
+    for _ in range(iterations) :
 
-            if not img[i + 1, j] == 255: 
-                result[i, j] = 0
-                continue
-            if not img[i, j + 1] == 255: 
-                result[i, j] = 0
-                continue
-            if not img[i, j - 1] == 255: 
-                result[i, j] = 0
-                continue
-            if not img[i - 1, j] == 255: 
-                result[i, j] = 0
+        non_zeros_img = cv.findNonZero(result)
+        non_zeros_img_length = len(non_zeros_img)
+
+        tmp_result = result.copy()
+
+        for i in range(non_zeros_img_length) :
+            # findnonzero return a list with inverted coordinates
+            # so COLS is the row and ROWS is the column
+            row_img = non_zeros_img[i][0][COLS]
+            col_img = non_zeros_img[i][0][ROWS]
+
+            for j in range(non_zero_mask_length) :
+                # same as above, coordinates are inverted
+                row_mask = non_zeros_mask[j][0][COLS]
+                col_mask = non_zeros_mask[j][0][ROWS]
+
+                diff_i = row_mask - mask_kernel[ROWS]
+                diff_j = col_mask - mask_kernel[COLS]
+
+                neighbor = [row_img + diff_i, col_img + diff_j]
+
+                if neighbor[ROWS] < LOWER_LIMIT or neighbor[ROWS] >= rows : continue
+                if neighbor[COLS] < LOWER_LIMIT or neighbor[COLS] >= cols : continue
+
+                if not tmp_result[neighbor[ROWS], neighbor[COLS]] == WHITE :
+                    result[row_img, col_img] = BLACK
+                    break
     
     return result
 
-def opening(img: cv.Mat, mask: cv.Mat, mask_kernel: tuple) :
-    eroded = erode(erode(erode(img)))
-    return dilate(dilate(dilate(eroded)))
+def opening(img: cv.Mat, mask: cv.Mat, mask_kernel: tuple, iterations: int = 1) :
+    eroded = erode(img, mask, mask_kernel, iterations)
+    return dilate(eroded, mask, mask_kernel, iterations)
 
-def closing(img: cv.Mat, mask: cv.Mat, mask_kernel: tuple) :
-    dilated = dilate(dilate(dilate(img)))
-    return erode(erode(erode(dilated)))
+def closing(img: cv.Mat, mask: cv.Mat, mask_kernel: tuple, iterations: int = 1) :
+    dilated = dilate(img, mask, mask_kernel, iterations)
+    return erode(dilated, mask, mask_kernel, iterations)
 
-def homotopic_thinning(img: cv.Mat) :
+def rotate_matrix_by_45(matrix: np.matrix, rotate: int = 1) :
+    rows = matrix.shape[ROWS]
+    cols = matrix.shape[COLS]
 
-    mask_1 = np.matrix([
-        [0, 0, 0],
-        [-1,1,-1],
-        [1, 1, 1]
-    ])
+    result = matrix.copy()
 
-    mask_2 = np.matrix([
-        [-1,  0,  0],
-        [ 1,  1,  0],
-        [ 1,  1, -1]
-    ])
+    for _ in range(rotate) :
+        for i in range(rows) :
+            for j in range(cols) :
+                if i not in [0, rows - 1] :
+                    if j not in [0, cols - 1] : continue
+                    if j == 0 :
+                        result[i - 1, j] = matrix[i, j]
+                    else :
+                        result[i + 1, j] = matrix[i, j]
+                elif i == rows - 1 :
+                    if j == 0 :
+                        result[i - 1, j] = matrix[i, j]
+                    else : 
+                        result[i, j - 1] = matrix[i, j]
+                else :
+                    if j == cols - 1 :
+                        result[i + 1, j] = matrix[i, j]
+                    else :
+                        result[i, j + 1] = matrix[i, j]
+    return result
 
-    mask_3 = np.matrix([
-        [1, -1,  0],
-        [1,  1,  0],
-        [1, -1,  0]
-    ])
-
-    mask_4 = np.matrix([
-        [ 1,  1, -1],
-        [ 1,  1,  0],
-        [-1,  0,  0]
-    ])
-
-    mask_5 = np.matrix([
-        [ 1,  1,  1],
-        [-1, 1, -1],
-        [ 0,  0,  0]
-    ])
-
-    mask_6 = np.matrix([
-        [-1, 1, 1],
-        [0, 1, 1],
-        [0, 0, -1]
-    ])
-
-    mask_7 = np.matrix([
-        [0, -1, 1],
-        [0, 1, 1],
-        [0, -1, 1]
-    ])
-
-    mask_8 = np.matrix([
-        [0, 0, -1],
-        [0,  1, 1],
-        [-1, 1, 1]
-    ])
-
-    masks = [mask_1, mask_2, mask_3, mask_4, mask_5, mask_6, mask_7, mask_8]
-
-    result = img.copy()
+def homotopic_thinning(img: cv.Mat, mask: cv.Mat) :
+    if(len(img.shape) == RGB_CHANNELS) :
+        return Exception("Image need to be in grayscale and binarized")
 
     rows = img.shape[ROWS]
     cols = img.shape[COLS]
+
+    mask_rows = mask.shape[ROWS]
+    mask_cols = mask.shape[COLS]
+    mask_center_row = mask_rows // 2
+    mask_center_col = mask_cols // 2
+
+    result = img.copy()
 
     nb_deleted = 1
 
@@ -139,49 +148,57 @@ def homotopic_thinning(img: cv.Mat) :
 
         print(nb_deleted)
 
+        non_zeros_img = cv.findNonZero(result)
+        non_zeros_img_length = len(non_zeros_img)
+
         nb_deleted = 0
 
-        for i in range(2, rows - 1) :
-            for j in range(2, cols - 1) :
+        tmp_result = result.copy()
 
-                to_do = result[i, j] == 255
+        for k in range(non_zeros_img_length) :
+            row_img = non_zeros_img[k][0][COLS]
+            col_img = non_zeros_img[k][0][ROWS]
 
-                if to_do :
+            to_delete = False
 
-                    to_delete = False
-                    
-                    for k in range(len(masks)) :
-                        mask = masks[k]
-                        
-                        rows_mask = mask.shape[ROWS]
-                        cols_mask = mask.shape[COLS]
+            tmp_mask = mask.copy()
 
-                        to_delete_temp = True
+            while True :
 
-                        for i_m in range(rows_mask) :
-                            for j_m in range(cols_mask) :
-                                mask_value = mask[i_m, j_m]
+                to_delete_temp = True
 
-                                if mask_value == -1 : continue
+                for row_mask in range(mask_rows) :
+                    for col_mask in range(mask_cols) :
+                        mask_value = tmp_mask[row_mask, col_mask]
+                        if mask_value == JOKER : continue
 
-                                diff_i = i_m - 1
-                                diff_j = j_m - 1
+                        diff_row = row_mask - mask_center_row
+                        diff_col = col_mask - mask_center_col
 
-                                if result[i + diff_i, j + diff_j] != (mask[i_m, j_m] * 255) :
-                                    to_delete_temp = False
-                                    break
+                        neighbor = [row_img + diff_row, col_img + diff_col]
+                        if neighbor[ROWS] < LOWER_LIMIT or neighbor[ROWS] >= rows : continue
+                        if neighbor[COLS] < LOWER_LIMIT or neighbor[COLS] >= cols : continue
 
-                            if not to_delete_temp :
-                                break
-                        
-                        if to_delete_temp :
-                            to_delete = True
+                        if tmp_result[neighbor[ROWS], neighbor[COLS]] != (tmp_mask[row_mask, col_mask] * WHITE) :
+                            to_delete_temp = False
                             break
-                            
-                    if to_delete : 
-                        nb_deleted += 1
-                        result[i, j] = 0
+
+                    if not to_delete_temp :
                         break
+                
+                if to_delete_temp :
+                    to_delete = True
+                    break
+
+                tmp_mask = rotate_matrix_by_45(tmp_mask)
+                
+                if np.array_equal(tmp_mask, mask) :
+                    break
+
+                    
+            if to_delete : 
+                nb_deleted += 1
+                result[row_img, col_img] = BLACK
 
     return result
 
