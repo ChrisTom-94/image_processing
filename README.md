@@ -11,7 +11,7 @@ It also uses the numpy and matplotlib libraries.
 - [x] Cumulative histogram
 - [x] Histogram stretching
 - [x] Histogram equalization
-- [x] Histogram matching / histogram specification
+- [] Histogram matching / histogram specification
 - ...
 ### Noises
 - [x] Uniform noise
@@ -43,6 +43,8 @@ It also uses the numpy and matplotlib libraries.
 - [x] Opening
 - [x] Closing
 - [x] homotopic thinning
+- [x] Lantuejoul thinning
+- [x] Lantuejoul Reconstruction
 - ...
 
 

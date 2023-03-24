@@ -7,7 +7,7 @@ WHITE = 255
 JOKER = -1
 LOWER_LIMIT = 0
 
-def dilate(img: cv.Mat, mask: cv.Mat, mask_kernel: tuple, iterations: int = 1) :
+def dilate(img: cv.Mat, mask: cv.Mat, mask_kernel: tuple, iterations: int = 1, get_added: bool = False) :
     
     if(len(img.shape) == RGB_CHANNELS) :
         return Exception("Image need to be in grayscale and binarized")
@@ -19,10 +19,15 @@ def dilate(img: cv.Mat, mask: cv.Mat, mask_kernel: tuple, iterations: int = 1) :
     non_zero_mask_length = len(non_zeros_mask)
     
     result = img.copy()
+    added = []
 
     for _ in range(iterations) :
 
         non_zeros_img = cv.findNonZero(result)
+
+        if non_zeros_img is None :
+            break
+
         non_zeros_img_length = len(non_zeros_img)
 
         for i in range(non_zeros_img_length) :
@@ -44,12 +49,17 @@ def dilate(img: cv.Mat, mask: cv.Mat, mask_kernel: tuple, iterations: int = 1) :
                 if neighbor[ROWS] < LOWER_LIMIT or neighbor[ROWS] >= rows_img : continue
                 if neighbor[COLS] < LOWER_LIMIT or neighbor[COLS] >= cols_img : continue
 
-                result[neighbor[ROWS], neighbor[COLS]] = WHITE
+                if not result[neighbor[ROWS], neighbor[COLS]] == WHITE :
+                    result[neighbor[ROWS], neighbor[COLS]] = WHITE
+                    added.append((neighbor[ROWS], neighbor[COLS]))
 
-    return result     
+    if get_added : 
+        return [result, added]
+    else :
+        return result  
             
 
-def erode(img: cv.Mat, mask: cv.Mat, mask_kernel: tuple, iterations: int = 1) :
+def erode(img: cv.Mat, mask: cv.Mat, mask_kernel: tuple, iterations: int = 1, get_removed: bool = False) : 
     if(len(img.shape) == RGB_CHANNELS) :
         return Exception("Image need to be in grayscale and binarized")
 
@@ -60,10 +70,15 @@ def erode(img: cv.Mat, mask: cv.Mat, mask_kernel: tuple, iterations: int = 1) :
     non_zero_mask_length = len(non_zeros_mask)
 
     result = img.copy()
+    removed = []
 
     for _ in range(iterations) :
 
         non_zeros_img = cv.findNonZero(result)
+
+        if non_zeros_img is None :
+            break
+
         non_zeros_img_length = len(non_zeros_img)
 
         tmp_result = result.copy()
@@ -89,9 +104,14 @@ def erode(img: cv.Mat, mask: cv.Mat, mask_kernel: tuple, iterations: int = 1) :
 
                 if not tmp_result[neighbor[ROWS], neighbor[COLS]] == WHITE :
                     result[row_img, col_img] = BLACK
+                    removed.append((row_img, col_img))
                     break
     
-    return result
+    if get_removed :
+        return [result, removed]
+    else :
+        return result
+    
 
 def opening(img: cv.Mat, mask: cv.Mat, mask_kernel: tuple, iterations: int = 1) :
     eroded = erode(img, mask, mask_kernel, iterations)
@@ -146,8 +166,6 @@ def homotopic_thinning(img: cv.Mat, mask: cv.Mat) :
 
     while nb_deleted > 0 :
 
-        print(nb_deleted)
-
         non_zeros_img = cv.findNonZero(result)
         non_zeros_img_length = len(non_zeros_img)
 
@@ -191,7 +209,7 @@ def homotopic_thinning(img: cv.Mat, mask: cv.Mat) :
                     break
 
                 tmp_mask = rotate_matrix_by_45(tmp_mask)
-                
+
                 if np.array_equal(tmp_mask, mask) :
                     break
 
@@ -199,8 +217,79 @@ def homotopic_thinning(img: cv.Mat, mask: cv.Mat) :
             if to_delete : 
                 nb_deleted += 1
                 result[row_img, col_img] = BLACK
+        
+        print(nb_deleted)
 
     return result
+
+
+def lantuejoul(img: cv.Mat, mask: cv.Mat):
+    if(len(img.shape) == RGB_CHANNELS) :
+        return Exception("Image need to be in grayscale and binarized")
+
+    rows = img.shape[ROWS]
+    cols = img.shape[COLS]
+
+    skeleton = np.zeros((rows, cols), dtype=np.uint8)
+    recompose_function = np.zeros((rows, cols), dtype=np.uint8)
+
+    tmp = img.copy()
+
+    iter = 0
+    while True :
+        iter += 1
+        eroded = erode(tmp, mask, (1,1))
+
+        [eroded_opening, removed] = erode(eroded, mask, (1,1), get_removed=True)
+
+        if len(removed) == 0 :
+            break
+
+        [opening, added] = dilate(eroded_opening, mask, (1,1), get_added=True)
+
+        tmp = opening.copy()
+
+        diff = list(set(removed) - set(added))
+
+        for i, j in diff : 
+            skeleton[i, j] = 255
+            recompose_function[i, j] = iter
+
+
+    return [skeleton, recompose_function]
+
+
+def recompose_from_lantuejoul(skeleton: cv.Mat, recompose_function: cv.Mat) : 
+
+    rows = skeleton.shape[ROWS]
+    cols = skeleton.shape[COLS]
+
+    non_zeros_img = cv.findNonZero(skeleton)
+    non_zeros_length = len(non_zeros_img)
+
+    recomposed = np.zeros((rows, cols))
+
+    for i in range(non_zeros_length):
+        row = non_zeros_img[i][0][COLS]
+        col = non_zeros_img[i][0][ROWS]
+
+        tmp_skelet = np.zeros((rows, cols))
+        tmp_skelet[row, col] = 255
+
+        iter = recompose_function[row, col]
+
+        mask = np.ones((3,3))
+
+        result = dilate(tmp_skelet, mask, (1,1), iter)
+
+        for x in range(rows) :
+            for y in range(cols) :
+                if result[x, y] == WHITE :
+                    recomposed[x, y] = WHITE
+
+    return recomposed
+
+
 
 
 
